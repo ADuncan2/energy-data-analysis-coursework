@@ -8,7 +8,9 @@ library(data.table)
 
 setwd("~/Energy data analysis coursework/energy-data-analysis-coursework")
 
-data <- read.csv("~/Energy data analysis coursework/data/LCL-June2015v2_2.csv")
+
+
+data <- read.csv("~/Energy data analysis coursework/data/LCL-June2015v2_3.csv")
 
 data1<- data %>%
   rename(KWh = KWH.hh..per.half.hour.)%>%
@@ -42,6 +44,6 @@ big_data = do.call(rbind, datalist)
 
 big_data%>%
   group_by(number)%>%
-  summarise(max = max(max))%>%
+  summarise(max = max(max_norm))%>%
   ggplot(aes(number,max))+
   geom_point()
