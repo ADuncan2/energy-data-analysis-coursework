@@ -8,7 +8,7 @@ library(data.table)
 
 setwd("~/Energy data analysis coursework/energy-data-analysis-coursework")
 
-data <- read.csv("summary_stats.csv")
+data_sum <- read.csv("summary_stats.csv")
 
 data%>%
   select(-start,-end,-obs)%>%

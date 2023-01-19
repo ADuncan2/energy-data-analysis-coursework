@@ -6,8 +6,11 @@ library(tidyr)
 library(plotly)
 library(data.table)
 
-setwd("~/energy data analysis")
-d <- data.frame(1:3)
+setwd("~/Energy data analysis coursework/energy-data-analysis-coursework")
+
+
+#creating a for loop to open each individual file, change the data types
+# individual parts of this are explained in more detail below
 
 tic("summary")
 for (i in 0:134){
@@ -46,7 +49,11 @@ for (i in 0:134){
 toc()
 
 tic("total")
-data <- read.csv("data/LCL-June2015v2_0.csv")
+data <- read.csv("~/Energy data analysis/data/LCL-June2015v2_17.csv")
+
+#changes kwh data to numeric from factor (comes in from csv as str)
+#datetime stored as POSIX
+#Reformatting of date to extract particular aspects
 
 tic("data cleaning")
 data1<- data %>%
@@ -58,9 +65,33 @@ data1<- data %>%
   group_by(LCLid)
 toc()
 
+data2<- data1%>%
+  filter(LCLid == 492)%>%
+  mutate(count = 1:n())
+
+data2%>%
+  ggplot(aes(count,datetime))+
+  geom_line()
+
+plot_ly((data2%>%filter(LCLid==492)), type = 'scatter', mode = 'lines')%>%
+  add_trace(y = ~datetime, x = ~count, name = 'count')%>%
+  layout(showlegend = F)%>%
+  layout(
+    xaxis = list(zerolinecolor = '#ffff',
+                 zerolinewidth = 2,
+                 gridcolor = 'ffff'),
+    yaxis = list(zerolinecolor = '#ffff',
+                 zerolinewidth = 2,
+                 gridcolor = 'ffff'),
+    plot_bgcolor='#e5ecf6', width = 900)
+
+
+
+data_sum <- read.csv("summary_stats.csv")
+
 toc()
 
-
+#data grouped by property ID and 
 data_sum <- data1 %>%
   group_by(LCLid, KWh1)%>%
   summarise(obs = n())%>%

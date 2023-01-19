@@ -8,7 +8,9 @@ library(data.table)
 
 setwd("~/Energy data analysis coursework/energy-data-analysis-coursework")
 
-for (j in 1:2){
+tic()
+unlink("max_load.csv")
+for (j in 1:7){
   x <- "~/Energy data analysis coursework/data/LCL-June2015v2_"
   num <- as.character(j)
   name<- paste(x,num,".csv",sep="")
@@ -44,18 +46,21 @@ for (j in 1:2){
   
   big_data = do.call(rbind, datalist)
   
-  big_data%>%
+  big_data1<- big_data%>%
     group_by(number)%>%
     summarise(max = max(max_norm))
   
-  fwrite(big_data, file = "max_load.csv", sep = ",",
+  big_data1$batch <- j
+  
+  fwrite(big_data1, file = "max_load.csv", sep = ",",
          append = TRUE)
 }
+toc()
 
 max_load <- read.csv("max_load.csv")
 
 max_load%>%
-  group_by(number)%>%
-  summarise(max = max(max_norm))%>%
-  ggplot(aes(number,max))+
-  geom_point()
+  mutate(batch = as.factor(batch))%>%
+  ggplot(aes(number,max,color = batch))+
+  geom_point()+
+  labs(x="Number of properties",y="Maximum normalised coincident load [kWh]")
