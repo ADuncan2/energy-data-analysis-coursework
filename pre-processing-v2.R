@@ -8,7 +8,6 @@ library(data.table)
 
 setwd("~/Energy data analysis coursework/energy-data-analysis-coursework")
 
-
 #creating a for loop to open each individual file, change the data types
 # individual parts of this are explained in more detail below
 
