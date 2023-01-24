@@ -11,16 +11,7 @@ setwd("~/Energy data analysis coursework/energy-data-analysis-coursework")
 
 tic()
 unlink("max_load.csv")
-for (j in 1:1){
-  #extracting the data in managable portions
-  tic()
-  x <- "~/Energy data analysis coursework/data/LCL-June2015v2_"
-  num <- as.character(j)
-  name<- paste(x,num,".csv",sep="")
-  data <- read.csv(name)
-  toc()
-  #approx 2s to run
-  
+for (j in 1:7){
   #testing downloading in parquet format
   tic()
   x <- "~/Energy data analysis coursework/Parquet_Format/Control_gzip/File"
@@ -32,7 +23,7 @@ for (j in 1:1){
   
   #cleaning the data by changing formats of data
   data1<- data %>%
-    rename(KWh = KWH.hh..per.half.hour.)%>%
+    rename(KWh = `KWH/hh (per half hour) `)%>%
     mutate(KWh1 = as.numeric(as.character(KWh)),
            datetime = as.POSIXct(DateTime,"%Y-%m-%d %H:%M:%S",tz="GMT"),
            time = format(datetime,"%H:%M:%S"),
@@ -70,7 +61,8 @@ for (j in 1:1){
       ungroup()%>%
       summarise(count =  i - min_id +1,kwh_peak_sum = sum(kwh_peak))%>%
       left_join(data2,by="count")%>%
-      mutate(ADMD = kwh_peak_sum/kwh_sum_max)
+      mutate(demand_factor = kwh_peak_sum/kwh_sum_max,
+             coincidence_factor = 1/demand_factor)
   
     datalist[[i+1-min_id]]<-data3
   }
@@ -88,6 +80,6 @@ max_load <- read.csv("max_load.csv")
 
 max_load%>%
   mutate(batch = as.factor(batch))%>%
-  ggplot(aes(count,ADMD,color = batch))+
+  ggplot(aes(count,demand_factor,color = batch))+
   geom_point()+
-  labs(x="Number of properties",y="Maximum normalised coincident load [kWh]")
+  labs(x="Number of properties",y="After diversity maximum demand")
