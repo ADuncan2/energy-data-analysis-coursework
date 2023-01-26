@@ -86,7 +86,8 @@ plot_ly((data2%>%filter(LCLid==492)), type = 'scatter', mode = 'lines')%>%
 
 
 
-data_sum <- read.csv("summary_stats.csv")
+data_sum <- read.csv("summary_stats.csv")%>%
+  mutate(perc_zeros = zeros*100/obs,perc_NA = 100*NAs/obs)
 
 toc()
 
