@@ -7,22 +7,121 @@ library(plotly)
 library(data.table)
 library(arrow)
 library(readr)
+library(gganimate)
+library(ggridges)
 
 setwd("~/Energy data analysis coursework/energy-data-analysis-coursework")
 
 data_c <- read_csv("~/Energy data analysis coursework/data/Matrix/MatrixC.csv")
+data_t <- read_csv("~/Energy data analysis coursework/data/Matrix/MatrixT.csv")
 
-num_of_homes <-100
+run_test <- function(num){
+  num_of_homes <-num
+  
+  ran_sample <- sample(2:4445,num_of_homes,replace = FALSE)
+  
+  #finding sample of data and max kwh in study period
+  data_time <- data_c[,1]
+  data_sample <- data_c[,ran_sample]
+  colnames(data_sample)<-as.numeric(1:num_of_homes)
+  data <- cbind(data_time,data_sample)
+  
+  data[is.na(data)]<-0
+  
+  data_max_ind <- data%>%
+    pivot_longer(!DateTime,names_to = "house",values_to = "kwh")%>%
+    group_by(house)%>%
+    summarise(max_kwh = max(kwh))%>%
+    mutate(house = as.numeric(house))%>%
+    arrange(house,max_kwh)%>%
+    mutate(max_indi = cumsum(max_kwh))%>%
+    select(-max_kwh)
+  
+  data_max_cum <- data%>%
+    pivot_longer(!DateTime,names_to = "house",values_to = "kwh")%>%
+    group_by(DateTime)%>%
+    mutate(cumsum = cumsum(kwh))%>%
+    select(-kwh)%>%
+    ungroup()%>%
+    group_by(house)%>%
+    summarise(max_cum = max(cumsum))%>%
+    mutate(house=as.numeric(house))%>%
+    arrange(house,max_cum)%>%
+    right_join(data_max_ind,by="house")%>%
+    mutate(admd=max_indi/max_cum, coinc = 1/admd)%>%
+    select(admd,coinc)
+  
+  return(data_max_cum)
+}
+##test group
+tic()
+num_of_props<- 200 
+num_of_runs <- 100
+multi_runs <- data.frame("house" = 1:num_of_props)
 
-ran_sample <- sample(0:4445,num_of_homes,replace = FALSE)
+#clearing old data
+rm(results)
 
-#finding sample of data and max kwh in study period
-data_time <- data_c[,1]
-data_sample <- data_c[,ran_sample]
-data <- cbind(data_time,data_sample)
+for (i in 1:num_of_runs){
+  results <- run_test(num_of_props)
+  coinc_name <- paste("coinc",i)
+  admd_name <- paste("admd",i)
+  colnames(results)<- c(admd_name,coinc_name)
+  multi_runs<- cbind(multi_runs,results)
+}
+toc()
+
+
+##control group
+tic()
+num_of_props<- 200 
+num_of_runs <- 100
+multi_runs <- data.frame("house" = 1:num_of_props)
+
+#clearing old data
+rm(results)
+
+for (i in 1:num_of_runs){
+  results <- run_test(num_of_props)
+  coinc_name <- paste("coinc",i)
+  admd_name <- paste("admd",i)
+  colnames(results)<- c(admd_name,coinc_name)
+  multi_runs<- cbind(multi_runs,results)
+}
+toc()
+
+multi_runs2<- multi_runs%>%
+  pivot_longer(!house,names_to = "metric",values_to = "values")%>%
+  filter(grepl("admd",metric))%>%
+  group_by(metric)
+
+
+ggplot(multi_runs2,aes(x=house,y=values,color = metric))+
+  geom_point()
+
+
+multi_runs2%>%
+  ggplot(aes(x=values))+
+  geom_density()
+
+multi_runs2%>%
+  filter(house%%10==0)%>%
+  mutate(house = as.factor(house))%>%
+  ggplot(aes(x = values, y = house)) +
+    geom_density_ridges(scale = 4) +
+    scale_y_discrete(expand = c(0, 0)) +
+    scale_x_continuous(expand = c(0, 0)) +
+    coord_cartesian(clip = "off") +
+    theme_ridges(grid = F) +
+    guides(fill = F)+
+  labs(x="Demand diversity factor",y="Number house houses in sample",
+       title = "Density of demand diveristy factor for 100 runs of 200 randomly sampled homes")
 
 
 
+
+
+####older code####
 admd<- data.frame()
 
 tic()
