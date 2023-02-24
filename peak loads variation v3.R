@@ -10,12 +10,39 @@ library(readr)
 library(gganimate)
 library(ggridges)
 library(lubridate)
+library(goft)
 
 setwd("~/Energy data analysis coursework/energy-data-analysis-coursework")
 
 data_c <- read_csv("~/Energy data analysis coursework/data/Matrix/MatrixC.csv")
 data_t <- read_csv("~/Energy data analysis coursework/data/Matrix/MatrixT.csv")
 
+####log normal testing experiment####
+ran <- sample(2:4445,1)
+data_norm_h <- data_c[,ran]
+colnames(data_norm_h)<- "value"
+random_500 <- sample(1:39727,5000)
+lnorm <- lnorm_test(data_norm_h$value[random_500])
+
+ggplot(data_norm_h,aes(value))+
+  geom_histogram(bins=20)
+
+num_house <- 1000
+lnorm <- data.frame("house" = 1:num_house)
+for (i in 2:num_house){
+  data_norm_h <- data_c[,i]
+  colnames(data_norm_h)<- "value"
+  random_500 <- sample(1:39727,5000)
+  res<-lnorm_test(data_norm_h$value[random_500])
+
+  lnorm[i,2] <- res$p.value
+}
+
+ggplot(lnorm,aes(V2))+
+  geom_histogram()
+
+
+#### metric calculation ####
 run_test <- function(num){
   num_of_homes <-num
   num_cols <- ncol(data_t)
@@ -91,6 +118,7 @@ run_control <- function(num){
   
   return(data_max_cum)
 }
+
 ##test group
 tic()
 num_of_props<- 200 
@@ -186,8 +214,6 @@ multi_runs_cont2%>%
 
 #### weekly metric calculation
 
-
-
 run_weekly_test <- function(num){
   #finding sample of data and max kwh in study period
   num_of_homes <-  num
@@ -217,17 +243,17 @@ run_weekly_test <- function(num){
     right_join(data_max_ind,by="date")%>%
     mutate(admd=max_kwh/max_cum, coinc = 1/admd)%>%
     ungroup()%>%
-    select(admd,coinc)
+    dplyr::select(admd,coinc)
   
   return(data_max_cum)
 }
 
 tic()
 num_of_props<- 20 
-num_of_runs <- 10
+num_of_runs <- 1
 multi_runs_week <- data_t[,2]%>%
   mutate(date = floor_date(DateTime,unit = "week"))%>%
-  select(-DateTime)%>%
+  dplyr::select(-DateTime)%>%
   distinct()
 
 #clearing old data
@@ -248,3 +274,4 @@ multi_runs_week2<- multi_runs_week%>%
 
 ggplot(multi_runs_week2,aes(x=date,y=value,color = name))+
   geom_point()
+
