@@ -23,20 +23,28 @@ data_t <- data_t%>%
 
 ### setting the sample size
 
-reps <- 500
-num_of_homes <- 100
 
-data_generation <- function(num_of_homes){
+data_generation <- function(num_of_homes,data_type){
   num <- num_of_homes
-  num_cols <- ncol(data_t)
-  ran_sample <- sample(2:num_cols,num_of_homes,replace = FALSE)
-  data_time <- data_t[,1]
-  data_sample <- data_t[,ran_sample]
-  data <- cbind(data_time,data_sample)
-  data[is.na(data)]<-0 #note this, it's potentially a big assumption
+
+  if (data_type == "test") {
+    num_cols <- ncol(data_t)
+    ran_sample <- sample(2:num_cols,num,replace = FALSE)
+    data_time <- data_t[,1]
+    data_sample <- data_t[,ran_sample]
+    data_end <- cbind(data_time,data_sample)
+    data_end[is.na(data_end)]<-0 #note this, it's potentially a big assumption
+  } else {
+    num_cols <- ncol(data_c)
+    ran_sample <- sample(2:num_cols,num,replace = FALSE)
+    data_time <- data_c[,1]
+    data_sample <- data_c[,ran_sample]
+    data_end <- cbind(data_time,data_sample)
+    data_end[is.na(data_end)]<-0 #note this, it's potentially a big assumption
+  }
   
   ## partition based on period
-  return(data)}
+  return(data_end)}
 
 metrics_calc <- function(data,period){
   data_period <- data%>%
@@ -81,42 +89,78 @@ coinc_admd_calc <- function(data){
     dplyr::select(admd,coinc,div_max)%>%
     mutate(house = 1:num_of_homes)%>%
     dplyr::arrange(house,admd,coinc,div_max)%>%
-    pivot_longer(!house)
+    pivot_longer(!house)%>%
+    filter(house %in% list(1,3,10,50,100,200))
     
   return(data_max_cum)
 }
 
+
+###variables ###
 num_of_homes<-100
+data_type <- "control"
+period <- "season"
 
-data_sample <- data_generation(num_of_homes)
 
-period <- "month"
 
-data_period <- data_sample%>%
-  mutate(period = floor_date(DateTime,unit = period))%>%
-  dplyr::select(period)%>%
-  summarise(period = unique(period))
-
-metrics <- metrics_calc(data_sample,"month")
-
-##adding periods back into each list of metrics
-for (i in 1:nrow(data_period)){
-  metrics[[i]]<- metrics[[i]]%>%
-    mutate(date = data_period$period[i])
+repeat_calc <- function(num_of_homes,data_type,period){
+  data_sample <- data_generation(num_of_homes,data_type)
+  
+  data_period <- data_sample%>%
+    mutate(period = floor_date(DateTime,unit = period))%>%
+    dplyr::select(period)%>%
+    summarise(period = unique(period))
+  
+  metrics <- metrics_calc(data_sample,period)
+  
+  ##adding periods back into each list of metrics
+  for (i in 1:nrow(data_period)){
+    metrics[[i]]<- metrics[[i]]%>%
+      mutate(date = data_period$period[i])
+  }
+  
+  metrics_joined <- metrics%>%
+    rbindlist()
+  return(metrics_joined)
 }
 
-metrics_joined <- metrics%>%
-  rbindlist()
+test_data <- repeat_calc(num_of_homes,data_type,period)
 
-###for testing
-metrics_test <- metrics[[10]]
+tic()
+for (i in 1:30){
+  data <- repeat_calc(num_of_homes,data_type,period)
+  if(i==1){
+    data_store <- data
+  }
+  else{
+    data_store <- rbind(data_store,data)
+  }
+}
+toc()
 
-metrics_test<- metrics_test%>%
-  pivot_longer(!house)%>%
-  mutate(date=data_period$period[10])
+
+####test plots####
+data_store%>%
+  filter(name=="div_max",house == 100,date>as.POSIXct("2013-01-01"))%>%
+  group_by(date)%>%
+  summarise(avg_admd = mean(value))%>%
+  ggplot(aes(x=date,y=avg_admd))+
+  geom_point()
+
+
+data_store%>%
+  filter(name=="div_max",house == 100,date>as.POSIXct("2013-01-01"))%>%
+  mutate(date = as.factor(date))%>%
+  ggplot(aes(x=value, fill = date))+
+  geom_density()
   
 
 metrics_joined%>%
-  filter(name=="div_max")%>%
+  filter(name=="admd",house>30)%>%
+  ggplot(aes(x=date,y=value,colour = house))+
+  geom_point()
+
+metrics_joined_c%>%
+  filter(name=="div_max",house>30,date>as.POSIXct("2013-01-01"))%>%
   ggplot(aes(x=date,y=value,colour = house))+
   geom_point()
