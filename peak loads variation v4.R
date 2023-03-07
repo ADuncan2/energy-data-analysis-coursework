@@ -12,16 +12,16 @@ library(gganimate)
 library(ggridges)
 library(lubridate)
 library(goft)
+library(fitdistrplus)
 
 setwd("~/Energy data analysis coursework/energy-data-analysis-coursework")
 
 data_c <- read_csv("~/Energy data analysis coursework/data/Matrix/MatrixC.csv")
 data_t <- read_csv("~/Energy data analysis coursework/data/Matrix/MatrixT.csv")
 
-
-
 data_t <- data_t%>%
   dplyr::select(-...1)
+
 
 ### slimmed down version of functions for quicker repeats
 
@@ -50,23 +50,36 @@ rep_for_param <- function(data_type_rep,num_homes_rep){
 
 num_homes_rep <- 20
 data_type_rep <- "control"
+# DO NOT RUN - only run this if you want to reset everything
+data_store_rep<- data.frame(matrix(nrow=0,ncol=3))
+colnames(data_store_rep)<- c("coinc","admd","div_max")
+
+time_mins <- 20
+repeats<- time_mins*60/0.4
 
 tic("overall")
-for (i in 1:10){
+for (i in 1:repeats){
   data <- rep_for_param(data_type_rep,num_homes_rep)
-
-  if(i==1){
-    data_store_rep <- data
-  }
-  else{
-    data_store_rep <- rbind(data_store_rep,data)
-  }
+  data_store_rep<-rbind(data_store_rep,data)
 }
 toc()
 
 
+ggplot(data_store_rep,aes(div_max))+
+  geom_histogram(bins=100)
 
+##test for normal distribution
+FIT_norm <- fitdist(data_store_rep$admd, "norm")    ## note: it is "norm" not "normal"
 
+plot(FIT_norm)    ## use method `plot.fitdist
+
+FIT_gamma <- fitdist(data_store_rep$admd, "gamma")    ## note: it is "norm" not "normal"
+
+plot(FIT_gamma)    ## use method `plot.fitdist
+
+FIT_lnorm <- fitdist(data_store_rep$admd, "lnorm")    ## note: it is "norm" not "normal"
+
+plot(FIT_lnorm) 
 
 ### setting the sample size
 
