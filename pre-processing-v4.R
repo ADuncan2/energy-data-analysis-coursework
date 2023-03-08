@@ -110,3 +110,15 @@ nrow(tou_test)/(ncol(data_tou)-1)
 #92.7 # of homes
 
 #### re-saving cleaned data ####
+#control
+data_control_clean <- data_control%>%
+  filter(DateTime>= as.POSIXct("2013-01-01"))%>%
+  dplyr::select(DateTime, control_test$name)
+
+write_csv(data_control_clean,"~/Energy data analysis coursework/data/Matrix/control_clean.csv")
+
+data_tou_clean <- data_tou%>%
+  filter(DateTime>= as.POSIXct("2013-01-01"))%>%
+  dplyr::select(DateTime, tou_test$name)
+
+write_csv(data_tou_clean,"~/Energy data analysis coursework/data/Matrix/ToU_clean.csv")

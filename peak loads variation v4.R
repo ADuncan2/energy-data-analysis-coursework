@@ -13,11 +13,14 @@ library(ggridges)
 library(lubridate)
 library(goft)
 library(fitdistrplus)
+library(nortest)
+library(EnvStats)
 
+set.seed(1)
 setwd("~/Energy data analysis coursework/energy-data-analysis-coursework")
 
-data_c <- read_csv("~/Energy data analysis coursework/data/Matrix/MatrixC.csv")
-data_t <- read_csv("~/Energy data analysis coursework/data/Matrix/MatrixT.csv")
+data_c <- read_csv("~/Energy data analysis coursework/data/Matrix/control_clean.csv")
+data_t <- read_csv("~/Energy data analysis coursework/data/Matrix/ToU_clean.csv")
 
 data_t <- data_t%>%
   dplyr::select(-...1)
@@ -54,7 +57,7 @@ data_type_rep <- "control"
 data_store_rep<- data.frame(matrix(nrow=0,ncol=3))
 colnames(data_store_rep)<- c("coinc","admd","div_max")
 
-time_mins <- 20
+time_mins <- 11*60
 repeats<- time_mins*60/0.4
 
 tic("overall")
@@ -64,22 +67,36 @@ for (i in 1:repeats){
 }
 toc()
 
+write_csv(data_store_rep,"~/Energy data analysis coursework/data/unclean_bootstrap_results.csv")
 
-ggplot(data_store_rep,aes(div_max))+
-  geom_histogram(bins=100)
+ggplot(data_store_rep,aes(coinc))+
+  geom_histogram(bins=100)+
+  labs(x="Coincidence factor")
+
+## adding lines for different curves
+
+norm<- data.frame(index = 1:136228,val= rnorm(136228))
+
+ggplot(norm,aes(val))+
+  geom_histogram(bins=100,aes(y=..density..))
+
+##goodness-of-fit checks
+gofTest(data_store_rep$admd,distribution = "lnorm")
 
 ##test for normal distribution
-FIT_norm <- fitdist(data_store_rep$admd, "norm")    ## note: it is "norm" not "normal"
+FIT_norm <- fitdist(data_store_rep$coinc, "norm")    ## note: it is "norm" not "normal"
 
 plot(FIT_norm)    ## use method `plot.fitdist
 
-FIT_gamma <- fitdist(data_store_rep$admd, "gamma")    ## note: it is "norm" not "normal"
+
+FIT_gamma <- fitdist(data_store_rep$coinc, "gamma")    ## note: it is "norm" not "normal"
 
 plot(FIT_gamma)    ## use method `plot.fitdist
 
-FIT_lnorm <- fitdist(data_store_rep$admd, "lnorm")    ## note: it is "norm" not "normal"
+FIT_lnorm <- fitdist(data_store_rep$coinc, "lnorm")    ## note: it is "norm" not "normal"
 
-plot(FIT_lnorm) 
+plot(FIT_lnorm)
+
 
 ### setting the sample size
 
