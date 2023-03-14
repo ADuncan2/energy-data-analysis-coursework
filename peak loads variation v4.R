@@ -22,81 +22,11 @@ setwd("~/Energy data analysis coursework/energy-data-analysis-coursework")
 data_c <- read_csv("~/Energy data analysis coursework/data/Matrix/control_clean.csv")
 data_t <- read_csv("~/Energy data analysis coursework/data/Matrix/ToU_clean.csv")
 
-data_t <- data_t%>%
-  dplyr::select(-...1)
-
-
-### slimmed down version of functions for quicker repeats
-
-rep_for_param <- function(data_type_rep,num_homes_rep){
-  data_rep <- data_generation(num_homes_rep,data_type_rep)
-  
-  data_rep1 <- data_rep%>%
-    pivot_longer(!DateTime,names_to = "house",values_to = "kwh")
-  
-  data_max_ind <- data_rep1%>%
-    group_by(house)%>%
-    summarise(max_kwh = max(kwh))%>%
-    summarise(sum_max_kwh = sum(max_kwh))
-  
-  data_max_cum <- data_rep1%>%
-    group_by(DateTime)%>%
-    summarise(sum_kwh = sum(kwh))%>%
-    summarise(max_sum_kwh = max(sum_kwh))%>%
-    bind_cols(data_max_ind)%>%
-    mutate(coinc = max_sum_kwh/sum_max_kwh,
-           admd = 1/coinc,
-           div_max = max_sum_kwh/num_homes_rep)%>%
-    dplyr::select(coinc,admd,div_max)
-  return(data_max_cum)
-}
-
-num_homes_rep <- 20
-data_type_rep <- "control"
-# DO NOT RUN - only run this if you want to reset everything
-data_store_rep<- data.frame(matrix(nrow=0,ncol=3))
-colnames(data_store_rep)<- c("coinc","admd","div_max")
-
-time_mins <- 11*60
-repeats<- time_mins*60/0.4
-
-tic("overall")
-for (i in 1:repeats){
-  data <- rep_for_param(data_type_rep,num_homes_rep)
-  data_store_rep<-rbind(data_store_rep,data)
-}
-toc()
-
-write_csv(data_store_rep,"~/Energy data analysis coursework/data/unclean_bootstrap_results.csv")
-
-ggplot(data_store_rep,aes(coinc))+
-  geom_histogram(bins=100)+
-  labs(x="Coincidence factor")
-
-## adding lines for different curves
-
-norm<- data.frame(index = 1:136228,val= rnorm(136228))
-
-ggplot(norm,aes(val))+
-  geom_histogram(bins=100,aes(y=..density..))
-
-##goodness-of-fit checks
-gofTest(data_store_rep$admd,distribution = "lnorm")
-
-##test for normal distribution
-FIT_norm <- fitdist(data_store_rep$coinc, "norm")    ## note: it is "norm" not "normal"
-
-plot(FIT_norm)    ## use method `plot.fitdist
-
-
-FIT_gamma <- fitdist(data_store_rep$coinc, "gamma")    ## note: it is "norm" not "normal"
-
-plot(FIT_gamma)    ## use method `plot.fitdist
-
-FIT_lnorm <- fitdist(data_store_rep$coinc, "lnorm")    ## note: it is "norm" not "normal"
-
-plot(FIT_lnorm)
-
+data_c_kw <- data_c%>%
+  pivot_longer(!DateTime)%>%
+  mutate(kw = value/0.5)%>%
+  dplyr::select(-value)%>%
+  pivot_wider(names_from = names,values_from = kw)
 
 ### setting the sample size
 
@@ -148,7 +78,7 @@ coinc_admd_calc <- function(data){
     pivot_longer(!DateTime,names_to = "house",values_to = "kwh")%>%
     mutate(house = as.numeric(house))%>%
     group_by(house)%>%
-    summarise(max_kwh = max(kwh))%>%
+    summarise(max_kwh = max(kwh,rm.na=TRUE))%>%
     mutate(max_indi = cumsum(max_kwh))%>%
     dplyr::select(-max_kwh)
 
@@ -168,32 +98,23 @@ coinc_admd_calc <- function(data){
     mutate(house = 1:num_of_homes)%>%
     dplyr::arrange(house,admd,coinc,div_max)%>%
     pivot_longer(!house)%>%
-    filter(house %in% list(1,3,10,50,100,150))
+    filter(house %in% list(5,10,20,50))
   
   return(data_max_cum)
 }
 
 
-###variables ###
-num_of_homes<-200
-data_type <- "control"
-period <- "month"
-
-
 
 repeat_calc <- function(num_of_homes,data_type,period){
-  tic("sample gen")
+  
   data_sample <- data_generation(num_of_homes,data_type)
-  toc()
   
   data_period <- data_sample%>%
     mutate(period = floor_date(DateTime,unit = period))%>%
     dplyr::select(period)%>%
     summarise(period = unique(period))
   
-  tic("metrics")
   metrics <- metrics_calc(data_sample,period)
-  toc()
   
   ##adding periods back into each list of metrics
   for (i in 1:nrow(data_period)){
@@ -206,35 +127,92 @@ repeat_calc <- function(num_of_homes,data_type,period){
   return(metrics_joined)
 }
 
+
+
+###variables ###
+num_of_homes<-3
+data_type <- "control"
+period <- "season"
+
 tic("overall")
-test_data <- repeat_calc(num_of_homes,data_type,period)
+test_data1 <- repeat_calc(num_of_homes,data_type,period)
 toc()
+
+test_data1%>%
+  mutate(house = as.factor(house))%>%
+  filter(name=="div_max",
+         date < as.POSIXct("2014-01-01"))%>%
+  ggplot(aes(date,value, colour = house))+
+  geom_point()+
+  labs(x="",y="Diversified maximum demand [kWh]")
 
 tic("overall")
 for (i in 1:40){
   data <- repeat_calc(num_of_homes,data_type,period)
   if(i==1){
-    data_store <- data
+    data_store_daily <- data
   }
   else{
-    data_store <- rbind(data_store,data)
+    data_store_daily <- rbind(data_store_daily,data)
   }
 }
 toc()
 
+#### testing 3 homes
+
+data_3_homes <- data_generation(3,"control")
+
+data_3_homes_1<- data_3_homes%>%
+  pivot_longer(!DateTime)%>%
+  mutate(period = floor_date(DateTime,"season"))
+
+p<- ggplot(data_3_homes_1%>%filter(name=="HH1965"),aes(DateTime,value,colour=period))+
+  geom_line()
+
+ggplotly(p)
+
+data_3_homes_metric<- metrics_calc(data_3_homes,"season")
 
 ####test plots####
+data_store_daily%>%
+  filter(name=="coinc",house==50)%>%
+  group_by(date)%>%
+  summarise(avg_coinc = mean(value))%>%
+  ggplot(aes(date,avg_coinc))+
+  geom_point()
+
+data_store_daily%>%
+  filter(name=="coinc",house==50)%>%
+  mutate(date = as.factor(date))%>%
+  ggplot(aes(date,value))+
+  geom_boxplot()
+
 data_store%>%
-  filter(name=="div_max",house == 100,date>as.POSIXct("2013-01-01"))%>%
+  filter(name=="coinc",house == 50)%>%
   group_by(date)%>%
   summarise(avg_admd = mean(value))%>%
   ggplot(aes(x=date,y=avg_admd))+
   geom_point()
 
+data_store%>%
+  filter(name=="coinc",house == 50)%>%
+  mutate(date=as.factor(date))%>%
+  ggplot(aes(x=date,y=value))+
+  geom_boxplot()+
+  coord_flip()+
+  labs(x="",y="Coincidence factor")
 
 data_store%>%
-  filter(name=="div_max",house == 100,date==as.POSIXct("2013-12-01"))%>%
+  filter(name=="div_max",house == 50,date==as.POSIXct("2013-12-01"))%>%
   mutate(date = as.factor(date))%>%
   ggplot(aes(x=value, fill = date))+
-  geom_histogram(bins=5)
+  geom_histogram(bins=30)+
+  labs(x="Coincidence factor")
   
+data_store%>%
+  filter(name=="coinc")%>%
+  mutate(date = as.factor(date))%>%
+  ggplot(aes(x=value, fill = date))+
+  geom_density()+
+  facet_wrap(~date)+
+  labs(x="Diversified maximum demand [kWh]")

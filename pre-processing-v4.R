@@ -41,16 +41,16 @@ ggplot(sum_dat_cont,aes(DateTime,sum))+
 data_tou <- read_csv("~/Energy data analysis coursework/data/Matrix/ToU.csv")
 data_times_tou <- data_tou$DateTime
 
-data_tou<- data_tou%>%
+data_tou_1<- data_tou%>%
   dplyr::select(-DateTime)
-data_tou[!is.na(data_tou)]<-1
-data_tou[is.na(data_tou)]<-0
+data_tou_1[!is.na(data_tou_1)]<-1
+data_tou_1[is.na(data_tou_1)]<-0
 
-data_tou$DateTime <- data_times_tou
+data_tou_1$DateTime <- data_times_tou
 
 
 
-sum_dat_tou <- data_tou%>%pivot_longer(!DateTime)%>%
+sum_dat_tou <- data_tou_1%>%pivot_longer(!DateTime)%>%
   group_by(DateTime)%>%
   summarise(sum = sum(value))
 
@@ -61,7 +61,7 @@ ggplot(sum_dat_tou,aes(DateTime,sum,colour = "ToU"))+
 
 #### Identifying homes that have end dates 
 #ToU
-tou_test<- data_tou%>%
+tou_test<- data_tou_1%>%
   filter(DateTime == as.POSIXct("2014-01-01"))%>%
   pivot_longer(!DateTime)%>%
   filter(value == 1)%>%
